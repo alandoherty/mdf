@@ -2,9 +2,9 @@
   "name": "mdf",
   "version": "1.1.1",
   "description": "A format for defining models through external schemas",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node src/test.js"
   },
   "author": "Alan Doherty <alan@karambyte.com>",
   "license": "MIT"
