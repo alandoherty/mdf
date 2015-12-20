@@ -1,11 +1,11 @@
 {
   "name": "mdf",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A format for defining models through external schemas",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js"
   },
-  "author": "Alan Doherty <alan.fred.doherty@googlemail.com> (http://alandoherty.co.uk)",
+  "author": "Alan Doherty <alan@karambyte.com>",
   "license": "MIT"
 }
