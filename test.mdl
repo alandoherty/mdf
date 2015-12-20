@@ -1,0 +1,12 @@
+model User : "zs_user" {
+    public string firstName = "";
+    string lastName = "";
+    string email;
+    bool emailVerified = false;
+    bool notifications;
+    bool blocked;
+    bool isPrivate;
+    string(64) password;
+    ref<Group> group;
+    ref<string(48)> avatarUrls;
+}
