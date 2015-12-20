@@ -4,7 +4,7 @@
   "description": "A format for defining models through external schemas",
   "main": "src/index.js",
   "scripts": {
-    "test": "node test/test.js"
+    "test": "node ./testy/test.js"
   },
   "author": "Alan Doherty <alan@karambyte.com>",
   "license": "MIT"
