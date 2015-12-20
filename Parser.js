@@ -723,7 +723,6 @@ var Parser = utils.class_("Parser", {
             line: this._current.line,
             offset: this._current.offset
         });
-        console.log(errStr);
     },
 
     /**

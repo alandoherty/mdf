@@ -41,7 +41,7 @@ var mdf = {
         if (!parser.parse())
             return {valid: false, errors: parser.getErrors()};
 
-        return parser.buildDefinitions();
+        return {valid: true, definitions: parser.buildDefinitions()};
     },
 
     /**
@@ -66,9 +66,16 @@ var mdf = {
 
         // read
         fs.readFile(path, _encoding, function(err, data) {
-            if (err) _callback(err);
-            else
-                _callback(null, mdf.parse(data));
+            if (err)  {
+                _callback(true, [{"str" : "couldn't open file path", "line": 0, "offset": 0}]);
+            } else {
+                var result = mdf.parse(data);
+
+                if (result.valid == false)
+                    _callback(true, result.errors);
+                else
+                    _callback(false, result.definitions);
+            }
         });
     }
 };
