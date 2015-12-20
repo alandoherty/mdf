@@ -77,6 +77,17 @@ var mdf = {
                     _callback(false, result.definitions);
             }
         });
+    },
+
+    /**
+     * Prints a list of errors to console.
+     * @param {Array} errorList The error list.
+     */
+    printErrors: function(errorList) {
+        for (var i = 0; i < errorList.length; i++) {
+            var error = errorList[i];
+            console.log(error.str + " on line " + error.line + ":" + error.offset);
+        }
     }
 };
 
