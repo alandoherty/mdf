@@ -1,11 +1,11 @@
 var mdf = require("../src/index");
-var mdl = mdf.parseFile("testy/test.mdl", function(err, definitions) {
+
+mdf.loadFile("testy/test.mdl", function(err) {
     if (err) {
-        mdf.printErrors(definitions);
+        console.error("error parsing file");
+        console.error(mdf.getErrors());
     } else {
-        for (var i = 0; i < definitions.length; i++) {
-            var obj = definitions[i];
-            obj.dump();
-        }
+        console.log(mdf.getModels());
+        console.log(mdf.getEnums());
     }
 });

@@ -9,8 +9,9 @@
  @purpose Parses the model tokens.
  */
 
-var utils = require("./utils"),
-    ModelDefinition = require("./ModelDefinition");
+var utils = require("../utils"),
+    Model = require("./Model"),
+    Enum = require("./Enum");
 
 /**
  * The schema tokenizer enums.
@@ -88,7 +89,8 @@ var keywords = [
     "public",
     "model",
     "secret",
-    "null"
+    "enum",
+    "import"
 ];
 
 var Tokenizer = utils.class_("Tokenizer", {
@@ -131,6 +133,12 @@ var Tokenizer = utils.class_("Tokenizer", {
      * @private
      */
     _token: "",
+
+    /**
+     * The path being tokenised.
+     * @private
+     */
+    _path: null,
 
     /**
      * Tokenizes the source input.
@@ -277,6 +285,14 @@ var Tokenizer = utils.class_("Tokenizer", {
     },
 
     /**
+     * Sets the path for extra error information.
+     * @param {string} path
+     */
+    setPath: function(path) {
+        this._path = path;
+    },
+
+    /**
      * Transitions to another state.
      * @param state
      * @private
@@ -302,7 +318,13 @@ var Tokenizer = utils.class_("Tokenizer", {
      * @private
      */
     _error: function(errStr) {
-        this._errors.push({str: errStr, line: this._line, offset: this._offset, pos: this._pos});
+        this._errors.push({
+            str: errStr,
+            line: this._line,
+            offset: this._offset,
+            pos: this._pos,
+            path: this._path
+        });
     },
 
     /**
@@ -385,16 +407,28 @@ var Parser = utils.class_("Parser", {
     _current: {},
 
     /**
-     * The definitions.
+     * The model definitions.
      * @private
      */
-    _definitions: [],
+    _models: [],
 
     /**
-     * The current definition.
+     * The enum definitions.
      * @private
      */
-    _definition: {},
+    _enums: [],
+
+    /**
+     * The importer.
+     * @private
+     */
+    _importer: null,
+
+    /**
+     * The path.
+     * @private
+     */
+    _path: null,
 
     /**
      * Gets the next token.
@@ -425,12 +459,12 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Accepts a token of the provided type.
-     * @param {string} type The token type.
+     * @param {number} type The token type.
      * @returns {object|boolean}
      * @private
      */
     _accept: function(type) {
-        var peek = this._peek(type);
+        var peek = this._peek();
 
         // check if any more tokens left
         if (peek == null) return false;
@@ -448,13 +482,13 @@ var Parser = utils.class_("Parser", {
      * @private
      */
     _acceptKeyword: function(keyword) {
-        var t_keyword = this._accept(TOK_KEYWORD);
+        var t_keyword = this._peek();
 
-        if (t_keyword !== false) {
+        if (t_keyword !== false && t_keyword.type == TOK_KEYWORD) {
             if (t_keyword.token.toLowerCase() != keyword.toLowerCase()) {
                 return false;
             } else {
-                return t_keyword;
+                return this._next();
             }
         } else {
             return false;
@@ -494,7 +528,7 @@ var Parser = utils.class_("Parser", {
 
         if (t_keyword !== false) {
             if (t_keyword.token.toLowerCase() != keyword.toLowerCase()) {
-                this._error("expected keyword '" + keyword + "', got '" + t_keyword.token + "'");
+                this._error("expected keyword '" + keyword + "', got '" + t_keyword.token + "'", t_keyword);
             } else {
                 return t_keyword;
             }
@@ -531,20 +565,138 @@ var Parser = utils.class_("Parser", {
      * @returns {boolean}
      */
     parse: function() {
+        // reset values
+        this._errors = [];
+        this._pos = 0;
+        this._current = {};
+        this._models = [];
+        this._enums = [];
+
+        // parse
         while(true) {
             if (this._accept(TOK_EOF) ) {
                 return this._errors.length == 0;
             } else if (this._errors.length > 0) {
                 return false;
             } else {
-                var def = this._parseDefinition();
+                var def = false;
 
-                if (def !== false)
-                    this._definitions.push(def);
-                else
-                    return false;
+                // expect a keyword of some type
+                if (this._acceptKeyword("model")) {
+                    def = this._parseDefinition();
+
+                    if (def !== false)
+                        this._models.push(def);
+                    else
+                        return false;
+                } else if (this._acceptKeyword("enum")) {
+                    def = this._parseEnum();
+
+                    if (def !== false)
+                        this._enums.push(def);
+                    else
+                        return false;
+                } else if (this._acceptKeyword("import")) {
+                    if (!this._parseImport())
+                        return false;
+                } else {
+                    // cause an error!
+                    this._expectKeyword("model");
+                }
             }
         }
+    },
+
+    /**
+     * Parses an enum.
+     * @returns {boolean|{}}
+     * @private
+     */
+    _parseEnum: function() {
+        // get enum name
+        var name = this._expect(TOK_IDENTIFIER);
+        if (name == false) return false;
+
+        // brace open
+        if (this._expect(TOK_BRACEOPEN) == false)
+            return false;
+
+        // fields
+        var values = [];
+
+        while (true) {
+            // brace close
+            if (this._accept(TOK_BRACECLOSE) != false)
+                break;
+
+            // get value
+            var value = this._expect(TOK_IDENTIFIER);
+            if (value == false) return false;
+
+            values.push(value.token);
+
+            // accept comma, or expect brace close
+            if (!this._accept(TOK_COMMA)) {
+                if (!this._expect(TOK_BRACECLOSE))
+                    return false;
+                else
+                    break;
+            }
+        }
+
+        // build definition
+        var def = {};
+        def.name = name.token;
+        def.values = values;
+
+        return def;
+    },
+
+    /**
+     * Parses an import.
+     * @returns {boolean}
+     * @private
+     */
+    _parseImport: function() {
+        // get file
+        var file = this._expect(TOK_STRING);
+
+        if (this._importer == null) {
+            this._error("import failed, no importer set");
+            return false;
+        } else {
+            // get data
+            var data = this._importer("", file.token);
+
+            if (data == false) {
+                this._error("import failed, cannot find path '" + file.token + "'");
+                return false;
+            } else {
+                // parse imported file
+                var result = module.exports.parse(data, this._importer, file.token, true);
+
+                // check if parse successful
+                var i = 0;
+
+                if (result.valid) {
+                    // push all models
+                    for (i = 0; i < result.models.length; i++)
+                        this._models.push(result.models[i]);
+
+                    // push all enums
+                    for (i = 0; i < result.enums.length; i++)
+                        this._enums.push(result.enums[i]);
+                } else {
+                    // push all errors
+                    for (i = 0; i < result.errors.length; i++)
+                        this._errors.push(result.errors[i]);
+                }
+            }
+        }
+
+        // semicolon to end
+        this._expect(TOK_SEMICOLON);
+        return true;
     },
 
     /**
@@ -553,48 +705,44 @@ var Parser = utils.class_("Parser", {
      * @private
      */
     _parseDefinition: function() {
-        if (this._expectKeyword("model")) {
-            // get model name
-            var name = this._expect(TOK_IDENTIFIER);
-            if (name == false) return false;
+        // get model name
+        var name = this._expect(TOK_IDENTIFIER);
+        if (name == false) return false;
 
-            // get table
-            var table = undefined;
+        // get table
+        var table = undefined;
 
-            if (this._accept(TOK_COLON)) {
-                table = this._expect(TOK_STRING);
-                if (table == false) return false;
-            }
-
-            // brace open
-            if (this._expect(TOK_BRACEOPEN) == false)
-                return false;
-
-            // fields
-            var fields = {};
-
-            while(true) {
-                // brace close
-                if (this._accept(TOK_BRACECLOSE) != false)
-                    break;
-
-                // get field
-                var field = this._parseField();
-                if (field == false) return false;
-
-                fields[field.name] = field;
-            }
-
-            // build definition
-            var def = {};
-            def.name = name.token;
-            if (table !== undefined) def.table = table.token;
-            def.fields = fields;
-
-            return def;
-        } else {
-            return false;
+        if (this._accept(TOK_COLON)) {
+            table = this._expect(TOK_STRING);
+            if (table == false) return false;
         }
+
+        // brace open
+        if (this._expect(TOK_BRACEOPEN) == false)
+            return false;
+
+        // fields
+        var fields = {};
+
+        while (true) {
+            // brace close
+            if (this._accept(TOK_BRACECLOSE) != false)
+                break;
+
+            // get field
+            var field = this._parseField();
+            if (field == false) return false;
+
+            fields[field.name] = field;
+        }
+
+        // build definition
+        var def = {};
+        def.name = name.token;
+        if (table !== undefined) def.table = table.token;
+        def.fields = fields;
+
+        return def;
     },
 
     /**
@@ -640,6 +788,22 @@ var Parser = utils.class_("Parser", {
         if (default_ !== undefined) field.def = default_.token;
 
         return field;
+    },
+
+    /**
+     * Sets the importer handler.
+     * @param {function} importer
+     */
+    setImporter: function(importer) {
+        this._importer = importer;
+    },
+
+    /**
+     * Sets the path for extra error information.
+     * @param {string} path
+     */
+    setPath: function(path) {
+        this._path = path;
     },
 
     /**
@@ -699,29 +863,54 @@ var Parser = utils.class_("Parser", {
     },
 
     /**
-     * Builds the definitions.
+     * Builds the model definitions.
      */
-    buildDefinitions: function() {
-        var definitions = [];
+    buildModels: function() {
+        var models = [];
 
-        for (var i = 0; i < this._definitions.length; i++) {
-            var def = this._definitions[i];
+        for (var i = 0; i < this._models.length; i++) {
+            var model = this._models[i];
 
-            definitions.push(new ModelDefinition(def.name, def.hasOwnProperty("table") ? def.table : false, def.fields));
+            models.push(new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields));
         }
 
-        return definitions;
+        return models;
+    },
+
+    /**
+     * Builds the enum definitions.
+     */
+    buildEnums: function() {
+        var enums = [];
+
+        for (var i = 0; i < this._enums.length; i++) {
+            var enum_ = this._enums[i];
+
+            enums.push(new Enum(enum_.name, enum_.values));
+        }
+
+        return enums;
     },
 
     /**
      * Pushes an error.
      * @param {string} errStr The error message.
+     * @param {object?} token The target token.
      * @private
      */
-    _error: function(errStr) {
-        this._errors.push({str: errStr,
-            line: this._current.line,
-            offset: this._current.offset
+    _error: function(errStr, token) {
+        // use current or specified token
+        if (token == undefined)
+            token = this._current;
+        if (token == null || Object.keys(token).length == 0)
+            token = this._tokens[0];
+
+        // push
+        this._errors.push({
+            str: errStr,
+            line: token.line,
+            offset: token.offset,
+            path: this._path
         });
     },
 
@@ -739,11 +928,47 @@ var Parser = utils.class_("Parser", {
      */
     constructor: function(tokens) {
         this._tokens = tokens;
+        this._path = null;
     }
 });
 
 // export
 module.exports = {
     Tokenizer: Tokenizer,
-    Parser: Parser
+    Parser: Parser,
+
+    /**
+     * Parses the input string.
+     * @param {string} str The definition file string.
+     * @param {function} importer The importer.
+     * @param {string?} path The path.
+     * @param {boolean?} rawData If to produce raw definitions.
+     * @returns {object}
+     */
+    parse: function(str, importer, path, rawData) {
+        // tokenize
+        var tokenizer = new Tokenizer(str);
+
+        if (path !== undefined)
+            tokenizer.setPath(path);
+
+        if (!tokenizer.tokenize())
+            return {valid: false, errors: tokenizer.getErrors()};
+
+        // parse
+        var parser = new Parser(tokenizer.getTokens());
+        parser.setImporter(importer);
+
+        if (path !== undefined)
+            parser.setPath(path);
+
+        if (!parser.parse())
+            return {valid: false, errors: parser.getErrors()};
+
+        return {
+            valid: true,
+            models: rawData ? parser._models : parser.buildModels(),
+            enums: rawData ? parser._enums : parser.buildEnums()
+        };
+    }
 };

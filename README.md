@@ -14,13 +14,12 @@ app.js
 ```
 var mdf = require("mdf");
 
-mdf.parseFile("myMdl.mdl", function(err, results) {
-  if (err) {
-    console.log("oh no");
-  } else {
-    var definition = results[0];
-    definition.dump();
-  }
+mdf.loadFile("myMdl.mdl", function(err) {
+    if (err) {
+        console.error(mdf.getErrors());
+    } else {
+        console.log(mdf.getModels());
+    }
 });
 ```
 

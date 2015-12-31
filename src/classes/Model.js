@@ -9,10 +9,10 @@
  @purpose Represents a model definition.
  */
 
-var utils = require("./utils");
+var utils = require("../utils");
 
 // export
-module.exports = utils.class_("ModelDefinition", {
+module.exports = utils.class_("Model", {
     /**
      * @private
      */

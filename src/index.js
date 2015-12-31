@@ -9,8 +9,11 @@
  @purpose Exports the module.
  */
 
-var Parser = require("./Parser"),
-    fs = require("fs");
+var Parser = require("./classes/Parser"),
+    Registry = require("./classes/Registry");
+
+// default
+var _globalRegistry = new Registry();
 
 // mdf
 var mdf = {
@@ -25,69 +28,58 @@ var mdf = {
     Parser : Parser.Parser,
 
     /**
-     * Parses a string.
-     * @param {string} str
+     * The registry class.
      */
-    parse: function(str) {
-        // tokenize
-        var tokenizer = new Parser.Tokenizer(str);
+    Registry : Registry,
 
-        if (!tokenizer.tokenize())
-            return {valid: false, errors: tokenizer.getErrors()};
-
-        // parse
-        var parser = new Parser.Parser(tokenizer.getTokens());
-
-        if (!parser.parse())
-            return {valid: false, errors: parser.getErrors()};
-
-        return {valid: true, definitions: parser.buildDefinitions()};
+    /**
+     * Loads a definition into the global registry.
+     * @param {string} str The definition string.
+     * @returns {boolean} If successful.
+     */
+    load: function(str) {
+        _globalRegistry.load(str);
     },
 
     /**
-     * Parses a file.
+     * Loads a file into the global registry.
      * @param {string} path The path.
-     * @param {string?} encoding The encoding.
-     * @param {function} callback The callback.
+     * @param {function} callback The callback on completion.
      */
-    parseFile: function(path, encoding, callback) {
-        // check parameters
-        if (typeof(path) !== "string") throw "expected parameter 'path' to be a string";
-
-        var _encoding = encoding;
-        var _callback = callback;
-
-        if (callback == undefined) {
-            _callback = encoding;
-            _encoding = "utf8";
-        } else if (callback == undeifned && encoding == undefined) {
-            _encoding = "utf8";
-        }
-
-        // read
-        fs.readFile(path, _encoding, function(err, data) {
-            if (err)  {
-                _callback(true, [{"str" : "couldn't open file path", "line": 0, "offset": 0}]);
-            } else {
-                var result = mdf.parse(data);
-
-                if (result.valid == false)
-                    _callback(true, result.errors);
-                else
-                    _callback(false, result.definitions);
-            }
-        });
+    loadFile: function(path, callback) {
+        _globalRegistry.loadFile(path, callback);
     },
 
     /**
-     * Prints a list of errors to console.
-     * @param {Array} errorList The error list.
+     * Gets a list of the most recent errors.
+     * @returns {object[]}
      */
-    printErrors: function(errorList) {
-        for (var i = 0; i < errorList.length; i++) {
-            var error = errorList[i];
-            console.log(error.str + " on line " + error.line + ":" + error.offset);
-        }
+    getErrors: function() {
+        return _globalRegistry.getErrors();
+    },
+
+    /**
+     * Gets all model definitions.
+     * @returns {object}
+     */
+    getModels: function() {
+        return _globalRegistry.getModels()
+    },
+
+    /**
+     * Gets all enum definitions.
+     * @returns {object}
+     */
+    getEnums: function() {
+        return _globalRegistry.getEnums()
+    },
+
+    /**
+     * Gets the global registry.
+     * @returns {Registry}
+     */
+    getGlobalRegistry: function() {
+        return _globalRegistry;
     }
 };
 
