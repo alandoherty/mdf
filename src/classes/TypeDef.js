@@ -9,7 +9,8 @@
  @purpose Represents a type definition.
  */
 
-var utils = require("../utils");
+var utils = require("../utils"),
+    Trace = require("./Trace");
 
 // export
 module.exports = utils.class_("TypeDef", {
@@ -22,6 +23,19 @@ module.exports = utils.class_("TypeDef", {
      * @private
      */
     _type: {},
+
+    /**
+     * @internal
+     */
+    _trace: null,
+
+    /**
+     * Gets the trace information.
+     * @returns {Trace}
+     */
+    getTrace: function() {
+        return this._trace;
+    },
 
     /**
      * Gets the enum's name.

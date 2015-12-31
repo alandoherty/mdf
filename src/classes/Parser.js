@@ -12,7 +12,8 @@
 var utils = require("../utils"),
     Model = require("./Model"),
     Enum = require("./Enum"),
-    TypeDef = require("./TypeDef");
+    TypeDef = require("./TypeDef"),
+    Trace = require("./Trace");
 
 /**
  * The schema tokenizer enums.
@@ -361,7 +362,7 @@ var Tokenizer = utils.class_("Tokenizer", {
             "token" : token,
             "type" : type,
             "line" : this._line,
-            "offset" : this._offset
+            "offset" : this._offset - token.length
         })
     },
 
@@ -592,7 +593,7 @@ var Parser = utils.class_("Parser", {
 
                 // expect a keyword of some type
                 if (this._acceptKeyword("model")) {
-                    def = this._parseDefinition();
+                    def = this._parseModel();
 
                     if (def !== false)
                         this._models.push(def);
@@ -629,6 +630,9 @@ var Parser = utils.class_("Parser", {
      * @private
      */
     _parseTypeDef: function() {
+        // get keyword (for tracing)
+        var keyword = this._current;
+
         // get type name
         var name = this._expect(TOK_IDENTIFIER);
         if (name == false) return false;
@@ -641,6 +645,7 @@ var Parser = utils.class_("Parser", {
         var def = {};
         def.name = name.token;
         def.type = type;
+        def.trace = new Trace(keyword.line, keyword.offset, this._path);
 
         return def;
     },
@@ -651,6 +656,9 @@ var Parser = utils.class_("Parser", {
      * @private
      */
     _parseEnum: function() {
+        // get keyword (for tracing)
+        var keyword = this._current;
+
         // get enum name
         var name = this._expect(TOK_IDENTIFIER);
         if (name == false) return false;
@@ -661,6 +669,7 @@ var Parser = utils.class_("Parser", {
 
         // fields
         var values = [];
+        var valuesTrace = [];
 
         while (true) {
             // brace close
@@ -672,6 +681,7 @@ var Parser = utils.class_("Parser", {
             if (value == false) return false;
 
             values.push(value.token);
+            valuesTrace.push(new Trace(value.line, value.offset, this._path));
 
             // accept comma, or expect brace close
             if (!this._accept(TOK_COMMA)) {
@@ -686,6 +696,8 @@ var Parser = utils.class_("Parser", {
         var def = {};
         def.name = name.token;
         def.values = values;
+        def.trace = new Trace(keyword.line, keyword.offset, this._path);
+        def.valuesTrace = valuesTrace;
 
         return def;
     },
@@ -746,7 +758,10 @@ var Parser = utils.class_("Parser", {
      * @returns {boolean|object}}
      * @private
      */
-    _parseDefinition: function() {
+    _parseModel: function() {
+        // get keyword (for tracing)
+        var keyword = this._current;
+
         // get model name
         var name = this._expect(TOK_IDENTIFIER);
         if (name == false) return false;
@@ -765,6 +780,7 @@ var Parser = utils.class_("Parser", {
 
         // fields
         var fields = {};
+        var fieldsTrace = {};
 
         while (true) {
             // brace close
@@ -775,7 +791,11 @@ var Parser = utils.class_("Parser", {
             var field = this._parseField();
             if (field == false) return false;
 
+            // push
             fields[field.name] = field;
+            fieldsTrace[field.name] = field.trace;
+
+            delete field.trace;
         }
 
         // build definition
@@ -783,6 +803,8 @@ var Parser = utils.class_("Parser", {
         def.name = name.token;
         if (table !== undefined) def.table = table.token;
         def.fields = fields;
+        def.trace = new Trace(keyword.line, keyword.offset, this._path);
+        def.fieldsTrace = fieldsTrace;
 
         return def;
     },
@@ -795,14 +817,20 @@ var Parser = utils.class_("Parser", {
     _parseField: function() {
         // visibility
         var visibility = "private";
+        var traceToken = null;
 
         if (this._acceptKeyword("public") || this._acceptKeyword("secret") || this._acceptKeyword("private")) {
             visibility = this._current.token;
+            traceToken = this._current;
         }
 
         // type
-        var type = this._parseType();
+        var type = this._parseType(true);
         if (type == false) return false;
+
+        if (traceToken == null)
+            traceToken = type.trace;
+        delete type.trace;
 
         // name
         var name = this._expect(TOK_IDENTIFIER);
@@ -828,6 +856,7 @@ var Parser = utils.class_("Parser", {
         field.visibility = visibility;
         field.name = name.token;
         if (default_ !== undefined) field.def = default_.token;
+        field.trace = new Trace(traceToken.line, traceToken.offset, this._path);
 
         return field;
     },
@@ -850,10 +879,11 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Parses a type.
+     * @param {boolean?} trace Provide trace information.
      * @returns {object|boolean}
      * @private
      */
-    _parseType: function() {
+    _parseType: function(trace) {
         // type name
         var type = this._expect(TOK_IDENTIFIER);
         if (type == false) return false;
@@ -884,6 +914,7 @@ var Parser = utils.class_("Parser", {
         typeData.name = type.token;
         if (param !== undefined) typeData.param = param;
         if (options !== undefined) typeData.options = options.token;
+        if (trace === true) typeData.trace = type;
 
         return typeData;
     },
@@ -913,8 +944,10 @@ var Parser = utils.class_("Parser", {
 
         for (var i = 0; i < this._models.length; i++) {
             var model = this._models[i];
-
-            models.push(new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields));
+            var obj = new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields);
+            obj._trace = model.trace;
+            obj._fieldsTrace = model.fieldsTrace;
+            models.push(obj);
         }
 
         return models;
@@ -929,8 +962,10 @@ var Parser = utils.class_("Parser", {
 
         for (var i = 0; i < this._enums.length; i++) {
             var enum_ = this._enums[i];
-
-            enums.push(new Enum(enum_.name, enum_.values));
+            var obj = new Enum(enum_.name, enum_.values);
+            obj._trace = enum_.trace;
+            obj._valuesTrace = enum_.valuesTrace;
+            enums.push(obj);
         }
 
         return enums;
@@ -945,8 +980,9 @@ var Parser = utils.class_("Parser", {
 
         for (var i = 0; i < this._typeDefs.length; i++) {
             var typeDef = this._typeDefs[i];
-
-            typeDefs.push(new TypeDef(typeDef.name, typeDef.type));
+            var obj = new TypeDef(typeDef.name, typeDef.type);
+            obj._trace = typeDef.trace;
+            typeDefs.push(obj);
         }
 
         return typeDefs;

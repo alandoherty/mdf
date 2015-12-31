@@ -9,7 +9,8 @@
  @purpose Represents an enum definition.
  */
 
-var utils = require("../utils");
+var utils = require("../utils"),
+    Trace = require("./Trace");
 
 // export
 module.exports = utils.class_("Enum", {
@@ -22,6 +23,38 @@ module.exports = utils.class_("Enum", {
      * @private
      */
     _values: [],
+
+    /**
+     * @internal
+     */
+    _trace: null,
+
+    /**
+     * @internal
+     */
+    _valuesTrace: [],
+
+    /**
+     * Gets the trace information.
+     * @returns {Trace}
+     */
+    getTrace: function() {
+        return this._trace;
+    },
+
+    /**
+     * Gets the trace information for a value.
+     * @param {string} value The value.
+     * @returns {Trace|null}
+     */
+    getValueTrace: function(value) {
+        for (var i = 0; i < this._values.length; i++) {
+            if (this._values == value)
+                return this._valuesTrace[i];
+        }
+
+        return null;
+    },
 
     /**
      * Gets the enum's name.

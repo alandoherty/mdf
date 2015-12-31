@@ -9,7 +9,8 @@
  @purpose Represents a model definition.
  */
 
-var utils = require("../utils");
+var utils = require("../utils"),
+    Trace = require("./Trace");
 
 // export
 module.exports = utils.class_("Model", {
@@ -27,6 +28,36 @@ module.exports = utils.class_("Model", {
      * @private
      */
     _fields: {},
+
+    /**
+     * @internal
+     */
+    _trace: null,
+
+    /**
+     * @internal
+     */
+    _fieldsTrace: {},
+
+    /**
+     * Gets the trace information.
+     * @returns {Trace}
+     */
+    getTrace: function() {
+        return this._trace;
+    },
+
+    /**
+     * Gets the trace information for a field.
+     * @param {string} field The field name.
+     * @returns {Trace|null}
+     */
+    getFieldTrace: function(field) {
+        if (this._fieldsTrace.hasOwnProperty(field))
+            return this._fieldsTrace[field];
+        else
+            return null;
+    },
 
     /**
      * Gets the model's table.
