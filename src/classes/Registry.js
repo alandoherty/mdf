@@ -28,6 +28,11 @@ module.exports = utils.class_("Registry", {
     /**
      * @private
      */
+    _typeDefs: {},
+
+    /**
+     * @private
+     */
     _errors: [],
 
     /**
@@ -67,6 +72,13 @@ module.exports = utils.class_("Registry", {
      */
     getEnums: function() {
         return this._enums;
+    },
+
+    /**
+     * Gets all type definitions in the registry.
+     */
+    getTypeDefs: function() {
+        return this._typeDefs;
     },
 
     /**
@@ -120,6 +132,12 @@ module.exports = utils.class_("Registry", {
             this._enums[obj.getName()] = obj;
         }
 
+        // set typedefs
+        for (i = 0; i < result.typeDefs.length; i++) {
+            obj = result.typeDefs[i];
+            this._typeDefs[obj.getName()] = obj;
+        }
+
         return true;
     },
 
@@ -171,6 +189,7 @@ module.exports = utils.class_("Registry", {
     constructor: function() {
         this._models = {};
         this._enums = {};
+        this._typeDefs = {};
         this._errors = [];
     }
 });

@@ -3,3 +3,6 @@ enum State {
     Mesh,
     Hole
 }
+
+typedef Email string(64)
+typedef Password string(64)

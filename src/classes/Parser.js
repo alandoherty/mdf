@@ -11,7 +11,8 @@
 
 var utils = require("../utils"),
     Model = require("./Model"),
-    Enum = require("./Enum");
+    Enum = require("./Enum"),
+    TypeDef = require("./TypeDef");
 
 /**
  * The schema tokenizer enums.
@@ -90,7 +91,8 @@ var keywords = [
     "model",
     "secret",
     "enum",
-    "import"
+    "import",
+    "typedef"
 ];
 
 var Tokenizer = utils.class_("Tokenizer", {
@@ -419,6 +421,12 @@ var Parser = utils.class_("Parser", {
     _enums: [],
 
     /**
+     * The type definitions.
+     * @private
+     */
+    _typeDefs: [],
+
+    /**
      * The importer.
      * @private
      */
@@ -571,6 +579,7 @@ var Parser = utils.class_("Parser", {
         this._current = {};
         this._models = [];
         this._enums = [];
+        this._typeDefs = [];
 
         // parse
         while(true) {
@@ -596,6 +605,13 @@ var Parser = utils.class_("Parser", {
                         this._enums.push(def);
                     else
                         return false;
+                } else if (this._acceptKeyword("typedef")) {
+                    def = this._parseTypeDef();
+
+                    if (def !== false)
+                        this._typeDefs.push(def);
+                    else
+                        return false;
                 } else if (this._acceptKeyword("import")) {
                     if (!this._parseImport())
                         return false;
@@ -605,6 +621,28 @@ var Parser = utils.class_("Parser", {
                 }
             }
         }
+    },
+
+    /**
+     * Parses a type definition.
+     * @returns {boolean|{}}
+     * @private
+     */
+    _parseTypeDef: function() {
+        // get type name
+        var name = this._expect(TOK_IDENTIFIER);
+        if (name == false) return false;
+
+        // get type
+        var type = this._parseType();
+        if (type == false) return false;
+
+        // build definition
+        var def = {};
+        def.name = name.token;
+        def.type = type;
+
+        return def;
     },
 
     /**
@@ -686,6 +724,10 @@ var Parser = utils.class_("Parser", {
                     // push all enums
                     for (i = 0; i < result.enums.length; i++)
                         this._enums.push(result.enums[i]);
+
+                    // push all type defs
+                    for (i = 0; i < result.typeDefs.length; i++)
+                        this._typeDefs.push(result.typeDefs[i]);
                 } else {
                     // push all errors
                     for (i = 0; i < result.errors.length; i++)
@@ -859,11 +901,12 @@ var Parser = utils.class_("Parser", {
      * @returns {string}
      */
     getTable: function() {
-        return this._table;
+        return this._tbl;
     },
 
     /**
      * Builds the model definitions.
+     * @returns {Array}
      */
     buildModels: function() {
         var models = [];
@@ -879,6 +922,7 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the enum definitions.
+     * @returns {Array}
      */
     buildEnums: function() {
         var enums = [];
@@ -890,6 +934,22 @@ var Parser = utils.class_("Parser", {
         }
 
         return enums;
+    },
+
+    /**
+     * Builds the type definition.
+     * @returns {Array}
+     */
+    buildTypeDefs: function() {
+        var typeDefs = [];
+
+        for (var i = 0; i < this._typeDefs.length; i++) {
+            var typeDef = this._typeDefs[i];
+
+            typeDefs.push(new TypeDef(typeDef.name, typeDef.type));
+        }
+
+        return typeDefs;
     },
 
     /**
@@ -968,7 +1028,8 @@ module.exports = {
         return {
             valid: true,
             models: rawData ? parser._models : parser.buildModels(),
-            enums: rawData ? parser._enums : parser.buildEnums()
+            enums: rawData ? parser._enums : parser.buildEnums(),
+            typeDefs: rawData ? parser._typeDefs : parser.buildTypeDefs()
         };
     }
 };

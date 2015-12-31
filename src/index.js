@@ -75,6 +75,14 @@ var mdf = {
     },
 
     /**
+     * Gets all type definitions.
+     * @returns {object}
+     */
+    getTypeDefs: function() {
+        return _globalRegistry.getTypeDefs()
+    },
+
+    /**
      * Gets the global registry.
      * @returns {Registry}
      */

@@ -7,5 +7,6 @@ mdf.loadFile("testy/test.mdl", function(err) {
     } else {
         console.log(mdf.getModels());
         console.log(mdf.getEnums());
+        console.log(mdf.getTypeDefs());
     }
 });
