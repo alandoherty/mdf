@@ -12,24 +12,49 @@ $ npm install mdf
 
 app.js
 ```
-var mdf = require("mdf");
+var mdf = require("../src/index");
 
-mdf.loadFile("myMdl.mdl", function(err) {
+mdf.loadFile("test.mdl", function(err) {
     if (err) {
+        console.error("error parsing file");
         console.error(mdf.getErrors());
     } else {
         console.log(mdf.getModels());
+        console.log(mdf.getEnums());
+        console.log(mdf.getTypeDefs());
     }
 });
 ```
 
-myMdl.mdl
+test.mdl
 ```
-model Testing : "test_tbl" { 
-  public string firstName;
-  public string lastName;
-  secret bool isCool = true;
+import "hello.mdl";
+
+model User : "tbl_user" {
+    public string firstName = "";
+    string lastName = "";
+    Email email;
+    bool emailVerified = false;
+    bool notifications;
+    bool blocked;
+    bool isPrivate;
+    Password password;
+    ref<Group> group;
+    ref<string(48)> avatarUrls;
+    State state;
 }
+```
+
+hello.mdl
+```
+enum State {
+    Potato,
+    Mesh,
+    Hole
+}
+
+typedef Email string(64)
+typedef Password string(64)
 ```
 
 # Testing
