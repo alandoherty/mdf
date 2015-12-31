@@ -704,7 +704,7 @@ var Parser = utils.class_("Parser", {
             return false;
         } else {
             // get data
-            var data = this._importer("", file.token);
+            var data = this._importer(this._path, file.token);
 
             if (data == false) {
                 this._error("import failed, cannot find path '" + file.token + "'");
