@@ -968,7 +968,6 @@ var Parser = utils.class_("Parser", {
             var obj = new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields);
             obj._trace = model.trace;
             obj._fieldsTrace = model.fieldsTrace;
-            console.log(obj._fields);
             models.push(obj);
         }
 
