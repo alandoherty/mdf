@@ -40,6 +40,7 @@ var TOK_BRACKOPEN = TOK_I++;
 var TOK_BRACKCLOSE = TOK_I++;
 var TOK_SEMICOLON = TOK_I++;
 var TOK_NUMBER = TOK_I++;
+var TOK_BOOLEAN = TOK_I++;
 var TOK_COMMA = TOK_I++;
 var TOK_EOF = TOK_I++;
 
@@ -61,6 +62,7 @@ function tokenToStr(type) {
     else if (type == TOK_BRACKCLOSE) return "TOK_BRACKCLOSE";
     else if (type == TOK_SEMICOLON) return "TOK_SEMICOLON";
     else if (type == TOK_NUMBER) return "TOK_NUMBER";
+    else if (type == TOK_BOOLEAN) return "TOK_BOOLEAN";
     else if (type == TOK_COLON) return "TOK_COLON";
     else if (type == TOK_COMMA) return "TOK_COMMA";
     else if (type == TOK_EOF) return "TOK_EOF";
@@ -228,8 +230,12 @@ var Tokenizer = utils.class_("Tokenizer", {
         this._token += c;
 
         if (!utils.isLetterOrDigit(n) && n != "_") {
-            if (keywords.indexOf(this._token) !== -1)
+            var tokenLower = this._token.toLowerCase();
+
+            if (keywords.indexOf(tokenLower) !== -1)
                 this._pushTokenAndTransition(TOK_KEYWORD, T_STATE_START);
+            else if (tokenLower == "false" || tokenLower == "true")
+                this._pushTokenAndTransition(TOK_BOOLEAN, T_STATE_START);
             else
                 this._pushTokenAndTransition(TOK_IDENTIFIER, T_STATE_START);
         }
@@ -553,7 +559,6 @@ var Parser = utils.class_("Parser", {
      */
     _expectValue: function() {
         var peek = this._peek();
-        var type = peek.type;
 
         // check if any more tokens left
         if (peek == null) {
@@ -561,12 +566,26 @@ var Parser = utils.class_("Parser", {
             return false;
         }
 
-        if (peek.type == type)
+        if (peek.type == TOK_STRING || peek.type == TOK_NUMBER || peek.type == TOK_BOOLEAN)
             return this._next();
         else {
             this._error("expected value type, got '" + tokenToStr(peek.type) + "'");
             return false;
         }
+    },
+
+    /**
+     * Converts the token into it's JS type.
+     * @param {object} token The token.
+     * @returns {string|boolean|number} The value.
+     */
+    _valueToStr: function(token) {
+        if (token.type == TOK_NUMBER)
+            return parseFloat(token.token);
+        else if (token.type == TOK_BOOLEAN)
+            return token.token === "true";
+        else
+            return token.token;
     },
 
     /**
@@ -844,6 +863,8 @@ var Parser = utils.class_("Parser", {
 
             if (!value)
                 return false;
+            else
+                default_ = value;
         }
 
         // semicolon
@@ -855,7 +876,7 @@ var Parser = utils.class_("Parser", {
         field.type = type;
         field.visibility = visibility;
         field.name = name.token;
-        if (default_ !== undefined) field.def = default_.token;
+        if (default_ !== undefined) field.def = this._valueToStr(default_);
         field.trace = new Trace(traceToken.line, traceToken.offset, this._path);
 
         return field;
@@ -947,6 +968,7 @@ var Parser = utils.class_("Parser", {
             var obj = new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields);
             obj._trace = model.trace;
             obj._fieldsTrace = model.fieldsTrace;
+            console.log(obj._fields);
             models.push(obj);
         }
 

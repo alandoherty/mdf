@@ -11,4 +11,5 @@ model User : "zs_user" {
     Password password;
     ref<Group> group;
     ref<string(48)> avatarUrls;
+    decimal credit = 42.24;
 }
