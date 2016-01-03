@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node ./testy/test.js"
   },
+  "repository": "alandoherty/mdf",
   "author": "Alan Doherty <alan@karambyte.com>",
   "license": "MIT"
 }
