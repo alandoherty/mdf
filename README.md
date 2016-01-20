@@ -40,7 +40,7 @@ model User : "tbl_user" {
     bool isPrivate;
     Password password;
     ref<Group> group;
-    ref<string(48)> avatarUrls;
+    array<string(48)> avatarUrls;
     State state;
 }
 ```
