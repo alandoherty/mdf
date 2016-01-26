@@ -660,6 +660,9 @@ var Parser = utils.class_("Parser", {
         var type = this._parseType();
         if (type == false) return false;
 
+        // optional semicolon
+        this._accept(TOK_SEMICOLON);
+
         // build definition
         var def = {};
         def.name = name.token;
@@ -710,6 +713,9 @@ var Parser = utils.class_("Parser", {
                     break;
             }
         }
+
+        // optional semicolon
+        this._accept(TOK_SEMICOLON);
 
         // build definition
         var def = {};
@@ -767,8 +773,9 @@ var Parser = utils.class_("Parser", {
             }
         }
 
-        // semicolon to end
-        this._expect(TOK_SEMICOLON);
+        // optional semicolon
+        this._accept(TOK_SEMICOLON);
+
         return true;
     },
 
@@ -816,6 +823,9 @@ var Parser = utils.class_("Parser", {
 
             delete field.trace;
         }
+
+        // optional semicolon
+        this._accept(TOK_SEMICOLON);
 
         // build definition
         var def = {};
