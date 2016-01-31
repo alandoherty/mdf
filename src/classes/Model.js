@@ -40,6 +40,28 @@ module.exports = utils.class_("Model", {
     _fieldsTrace: {},
 
     /**
+     * @internal
+     */
+    _registry: null,
+
+    /**
+     * Gets the registry.
+     * @param {Registry} registry
+     * @returns {null}
+     */
+    getRegistry: function(registry) {
+        return this._registry;
+    },
+
+    /**
+     * Sets the registry.
+     * @param {Registry} registry
+     */
+    setRegistry: function(registry) {
+        this._registry = registry;
+    },
+
+    /**
      * Gets the trace information.
      * @returns {Trace}
      */
@@ -111,6 +133,56 @@ module.exports = utils.class_("Model", {
     },
 
     /**
+     * Builds the model definition into a final format by combining
+     */
+    build: function() {
+        // check for registry
+        if (this._registry == null)
+            throw "The registry has not been set for the model";
+
+        // create model
+        var model = {
+            name : this._name,
+            table : this._tbl,
+            trace : this._trace,
+            fields : {},
+            fieldsTrace: this._fieldsTrace
+        };
+
+        // build
+        for (var f in this._fields) {
+            // check own property
+            if (!this._fields.hasOwnProperty(f))
+                continue;
+
+            // get field
+            var field = this._fields[f];
+            model.fields[f] = field;
+
+            // check for typedefs
+            if (this._registry.hasTypeDef(field.type.name) && !field.type.hasOwnProperty("param") && !field.type.hasOwnProperty("options")) {
+                model.fields[f].type = this._registry.getTypeDef(field.type.name).getData();
+                continue;
+            }
+
+            // check for model
+            if (this._registry.hasModel(field.type.name)) {
+                model.fields[f].type = {name: "ref", param: f};
+                continue;
+            }
+
+            // check for enums
+            if (this._registry.hasEnum(field.type.name)) {
+                var enum_ = this._registry.getEnum(field.type.name);
+                model.fields[f].type = {name: "enum", options: enum_.getValues()};
+                continue;
+            }
+        }
+
+        return model;
+    },
+
+    /**
      * Creates a new model definition.
      * @param {string} name The model name.
      * @param {string} tbl The table name.
@@ -128,5 +200,6 @@ module.exports = utils.class_("Model", {
         this._tbl = tbl;
         this._name = name;
         this._fields = fields;
+        this._registry = null;
     }
 });

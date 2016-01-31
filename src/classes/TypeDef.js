@@ -30,6 +30,28 @@ module.exports = utils.class_("TypeDef", {
     _trace: null,
 
     /**
+     * @internal
+     */
+    _registry: null,
+
+    /**
+     * Gets the registry.
+     * @param {Registry} registry
+     * @returns {null}
+     */
+    getRegistry: function(registry) {
+        return this._registry;
+    },
+
+    /**
+     * Sets the registry.
+     * @param {Registry} registry
+     */
+    setRegistry: function(registry) {
+        this._registry = registry;
+    },
+
+    /**
      * Gets the trace information.
      * @returns {Trace}
      */
@@ -49,7 +71,7 @@ module.exports = utils.class_("TypeDef", {
      * Gets the type.
      * @returns {{}}
      */
-    getType: function() {
+    getData: function() {
         return this._type;
     },
 

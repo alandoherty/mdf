@@ -9,7 +9,7 @@ model User : "zs_user" {
     bool blocked;
     bool isPrivate;
     Password password;
-    ref<Group> group;
-    ref<string(48)> avatarUrls;
+    Group group;
     decimal credit = 42.24;
+    State state;
 }

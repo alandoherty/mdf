@@ -10,6 +10,13 @@
  */
 
 var utils = {
+    baseTypes : [
+        "string",
+        "boolean",
+        "integer",
+        "decimal"
+    ],
+
     /**
      * Creates a new class.
      * @param {string} name The name.

@@ -102,6 +102,138 @@ module.exports = utils.class_("Registry", {
     },
 
     /**
+     * Gets a typedef by name.
+     * @param {string} name
+     */
+    getTypeDef: function(name) {
+        if (!this._typeDefs.hasOwnProperty(name))
+            return null;
+        else
+            return this._typeDefs[name];
+    },
+
+    /**
+     * Checks if the type def exists.
+     * @param {string} name The name.
+     * @returns {boolean}
+     */
+    hasTypeDef: function(name) {
+        return this.getTypeDef(name) != null;
+    },
+
+    /**
+     * Gets a enum by name.
+     * @param {string} name
+     */
+    getEnum: function(name) {
+        if (!this._enums.hasOwnProperty(name))
+            return null;
+        else
+            return this._enums[name];
+    },
+
+    /**
+     * Checks if the enum exists.
+     * @param {string} name The name.
+     * @returns {boolean}
+     */
+    hasEnum: function(name) {
+        return this.getEnum(name) != null;
+    },
+
+    /**
+     * Validates an enum.
+     * @param {Enum} enum_
+     * @private
+     */
+    _validateEnum: function(enum_) {
+        var errors = [];
+        var trace = enum_.getTrace();
+
+        // check for duplicate
+        if (this._enums.hasOwnProperty(enum_.getName())) {
+            errors.push({
+                str: "Duplicate enum `" + enum_.getName() + "`",
+                line: trace.getLine(),
+                offset: trace.getOffset(),
+                path: trace.getPath()
+            });
+        } else {
+            /// TODO: enum validation
+        }
+
+        // return errors
+        return {
+            valid: errors.length == 0,
+            errors: errors
+        }
+    },
+
+    /**
+     * Validates a model.
+     * @param {Model} model
+     * @private
+     */
+    _validateModel: function(model) {
+        var errors = [];
+        var trace = model.getTrace();
+
+        // check for duplicate
+        if (this._models.hasOwnProperty(model.getName())) {
+            errors.push({
+                str: "Duplicate model `" + model.getName() + "`",
+                line: trace.getLine(),
+                offset: trace.getOffset(),
+                path: trace.getPath()
+            });
+        } else {
+            // get fields
+            var fields = model.getFields();
+
+            // validate
+            for (var f in fields) {
+                if (!fields.hasOwnProperty(f))
+                    continue;
+
+                var resolvedType = false;
+                var field = fields[f];
+                var fieldTrace = model.getFieldTrace(f);
+
+                // check typedefs
+                if (this._typeDefs.hasOwnProperty(field.type.name))
+                    resolvedType = true;
+
+                // check enums
+                if (this._enums.hasOwnProperty(field.type.name))
+                    resolvedType = true;
+
+                // check models
+                if (this._models.hasOwnProperty(field.type.name))
+                    resolvedType = true;
+
+                // check base types
+                if (utils.baseTypes.indexOf(field.type.name) !== -1)
+                    resolvedType = true;
+
+                if (!resolvedType) {
+                    errors.push({
+                        str: "Invalid type `" + field.type.name + "` in `" + model.getName() + "`",
+                        line: fieldTrace.getLine(),
+                        offset: fieldTrace.getOffset(),
+                        path: fieldTrace.getPath()
+                    });
+                }
+            }
+        }
+
+        // return errors
+        return {
+            valid: errors.length == 0,
+            errors: errors
+        }
+    },
+
+    /**
      * Loads a definition file (internal version).
      * @param {string} str The contents.
      * @param {string?} path The path.
@@ -118,27 +250,51 @@ module.exports = utils.class_("Registry", {
         }
 
         var obj = null;
-        var i = 0;
-
-        // set models
-        for (i = 0; i < result.models.length; i++) {
-            obj = result.models[i];
-            this._models[obj.getName()] = obj;
-        }
+        var objRes = null;
+        var errors = [];
+        var i;
 
         // set enums
         for (i = 0; i < result.enums.length; i++) {
             obj = result.enums[i];
-            this._enums[obj.getName()] = obj;
+            objRes = {valid: true};
+
+            if (objRes.valid) {
+                obj.setRegistry(this);
+                this._enums[obj.getName()] = obj;
+            } else {
+                errors = errors.concat(objRes.errors);
+            }
         }
 
         // set typedefs
         for (i = 0; i < result.typeDefs.length; i++) {
             obj = result.typeDefs[i];
-            this._typeDefs[obj.getName()] = obj;
+            objRes = {valid: true};
+
+            if (objRes.valid) {
+                obj.setRegistry(this);
+                this._typeDefs[obj.getName()] = obj;
+            } else {
+                errors = errors.concat(objRes.errors);
+            }
         }
 
-        return true;
+        // set models
+        for (i = 0; i < result.models.length; i++) {
+            obj = result.models[i];
+            objRes = this._validateModel(obj);
+
+            if (objRes.valid) {
+                obj.setRegistry(this);
+                this._models[obj.getName()] = obj;
+            } else {
+                errors = errors.concat(objRes.errors);
+            }
+        }
+
+        this._errors = errors;
+        return errors.length == 0;
     },
 
     /**

@@ -6,3 +6,4 @@ enum State {
 
 typedef Email string(64)
 typedef Password string(64)
+typedef bool boolean
