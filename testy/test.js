@@ -5,8 +5,6 @@ mdf.loadFile("testy/test.mdl", function(err) {
         console.error("error parsing file");
         console.error(mdf.getErrors());
     } else {
-        console.log(mdf.getModels());
-        console.log(mdf.getEnums());
-        console.log(mdf.getTypeDefs());
+        console.log("success");
     }
 });
