@@ -19,7 +19,8 @@ var utils = {
         "integer",
         "decimal",
         "array",
-        "custom"
+        "custom",
+        "ref"
     ],
 
     /**
@@ -40,6 +41,7 @@ var utils = {
                 // no default
                 if (field.type.def)
                     return "Array field `" + field.name + "` cannot have default";
+
                 return true;
             case "custom":
                 // no param
@@ -49,6 +51,17 @@ var utils = {
                 // requires options
                 if (!field.type.options)
                     return "Custom field type `" + field.name + "` must specify type as option";
+
+                return true;
+            case "ref":
+                // no options
+                if (field.type.options)
+                    return "Model reference field `" + field.name + "` cannot have options";
+
+                // requires param
+                if (!field.type.param)
+                    return "Model reference field `" + field.name + "` must specify model as type parameter";
+
                 return true;
             default:
                 return true;
