@@ -1,5 +1,3 @@
-import "hello.mdl";
-
 model User : "zs_user" {
     public custom("point") location;
     public string(48) firstName = "";

@@ -419,19 +419,19 @@ var Parser = utils.class_("Parser", {
      * The model definitions.
      * @private
      */
-    _models: [],
+    _models: {},
 
     /**
      * The enum definitions.
      * @private
      */
-    _enums: [],
+    _enums: {},
 
     /**
      * The type definitions.
      * @private
      */
-    _typeDefs: [],
+    _typeDefs: {},
 
     /**
      * The importer.
@@ -597,9 +597,9 @@ var Parser = utils.class_("Parser", {
         this._errors = [];
         this._pos = 0;
         this._current = {};
-        this._models = [];
-        this._enums = [];
-        this._typeDefs = [];
+        this._models = {};
+        this._enums = {};
+        this._typeDefs = {};
 
         // parse
         while(true) {
@@ -615,21 +615,21 @@ var Parser = utils.class_("Parser", {
                     def = this._parseModel();
 
                     if (def !== false)
-                        this._models.push(def);
+                        this._models[def.name] = def;
                     else
                         return false;
                 } else if (this._acceptKeyword("enum")) {
                     def = this._parseEnum();
 
                     if (def !== false)
-                        this._enums.push(def);
+                        this._enums[def.name] = def;
                     else
                         return false;
                 } else if (this._acceptKeyword("typedef")) {
                     def = this._parseTypeDef();
 
                     if (def !== false)
-                        this._typeDefs.push(def);
+                        this._typeDefs[def.name] = def;
                     else
                         return false;
                 } else if (this._acceptKeyword("import")) {
@@ -751,20 +751,32 @@ var Parser = utils.class_("Parser", {
                 var result = module.exports.parse(data, this._importer, file.token, true);
 
                 // check if parse successful
-                var i = 0;
+                var i = "";
 
                 if (result.valid) {
                     // push all models
-                    for (i = 0; i < result.models.length; i++)
-                        this._models.push(result.models[i]);
+                    for (i in result.models) {
+                        if (!result.models.hasOwnProperty(i))
+                            continue;
+
+                        this._models[i] = result.models[i];
+                    }
 
                     // push all enums
-                    for (i = 0; i < result.enums.length; i++)
-                        this._enums.push(result.enums[i]);
+                    for (i in result.enums) {
+                        if (!result.enums.hasOwnProperty(i))
+                            continue;
+
+                        this._enums[i] = result.enums[i];
+                    }
 
                     // push all type defs
-                    for (i = 0; i < result.typeDefs.length; i++)
-                        this._typeDefs.push(result.typeDefs[i]);
+                    for (i in result.typeDefs) {
+                        if (!result.typeDefs.hasOwnProperty(i))
+                            continue;
+
+                        this._typeDefs[i] = result.typeDefs[i];
+                    }
                 } else {
                     // push all errors
                     for (i = 0; i < result.errors.length; i++)
@@ -968,17 +980,22 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the model definitions.
-     * @returns {Array}
+     * @returns {object}
      */
     buildModels: function() {
-        var models = [];
+        var models = {};
 
-        for (var i = 0; i < this._models.length; i++) {
+        for(var i in this._models) {
+            if (!this._models.hasOwnProperty(i))
+                continue;
+
+            // get model definition
             var model = this._models[i];
+
             var obj = new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields);
             obj._trace = model.trace;
             obj._fieldsTrace = model.fieldsTrace;
-            models.push(obj);
+            models[model.name] = obj;
         }
 
         return models;
@@ -986,17 +1003,22 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the enum definitions.
-     * @returns {Array}
+     * @returns {object}
      */
     buildEnums: function() {
-        var enums = [];
+        var enums = {};
 
-        for (var i = 0; i < this._enums.length; i++) {
+        for(var i in this._enums) {
+            if (!this._enums.hasOwnProperty(i))
+                continue;
+
+            // get enum definition
             var enum_ = this._enums[i];
+
             var obj = new Enum(enum_.name, enum_.values);
             obj._trace = enum_.trace;
             obj._valuesTrace = enum_.valuesTrace;
-            enums.push(obj);
+            enums[enum_.name] = obj;
         }
 
         return enums;
@@ -1004,16 +1026,21 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the type definition.
-     * @returns {Array}
+     * @returns {object}
      */
     buildTypeDefs: function() {
-        var typeDefs = [];
+        var typeDefs = {};
 
-        for (var i = 0; i < this._typeDefs.length; i++) {
+        for(var i in this._typeDefs) {
+            if (!this._typeDefs.hasOwnProperty(i))
+                continue;
+
+            // get type definition
             var typeDef = this._typeDefs[i];
+
             var obj = new TypeDef(typeDef.name, typeDef.type);
             obj._trace = typeDef.trace;
-            typeDefs.push(obj);
+            typeDefs[typeDef.name] = obj;
         }
 
         return typeDefs;
@@ -1076,7 +1103,7 @@ module.exports = {
         // tokenize
         var tokenizer = new Tokenizer(str);
 
-        if (path !== undefined)
+        if (path !== undefined && path !== null)
             tokenizer.setPath(path);
 
         if (!tokenizer.tokenize())

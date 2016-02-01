@@ -1,12 +1,12 @@
 var mdf = require("../src/index");
+var TaskQueue = require("../src/utilities/TaskQueue");
 
-mdf.loadFile("testy/test.mdl", function(err) {
+mdf.loadAllFiles(["./testy/models/test.mdl", "./testy/models/hello.mdl"], function(err) {
     if (err) {
-        console.error("error parsing file");
         console.error(mdf.getErrors());
-    } else {
-        var model = mdf.getModels()["User"].build();
-        console.log(model.fields);
-        console.log("success");
+        return;
     }
+
+    console.log(mdf.getGlobalRegistry());
+    console.log("woo");
 });

@@ -38,7 +38,18 @@ var mdf = {
      * @returns {boolean} If successful.
      */
     load: function(str) {
-        _globalRegistry.load(str);
+        return _globalRegistry.load(str);
+    },
+
+    /**
+     * Loads all definitions in the array into the global registry.
+     * This function must be used if the definition files depend
+     * on order.
+     * @param {string[]} strArr
+     * @returns {boolean} If successful.
+     */
+    loadAll: function(strArr) {
+        return _globalRegistry.loadAll(strArr);
     },
 
     /**
@@ -48,6 +59,17 @@ var mdf = {
      */
     loadFile: function(path, callback) {
         _globalRegistry.loadFile(path, callback);
+    },
+
+    /**
+     * Loads files into the global registry.
+     * This function must be used if the definition files depend
+     * on order.
+     * @param {string} pathArr The array of paths.
+     * @param {function} callback The callback on completion.
+     */
+    loadAllFiles: function(pathArr, callback) {
+        _globalRegistry.loadAllFiles(pathArr, callback);
     },
 
     /**

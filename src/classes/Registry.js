@@ -12,7 +12,39 @@
 var Parser = require("./Parser"),
     utils = require("../utils"),
     fs = require("fs"),
-    path = require("path");
+    path = require("path"),
+    TaskQueue = require("../utilities/TaskQueue");
+
+/**
+ * Loads all files in the specified directory.
+ * @param {string} dir
+ * @param {string|[]} filetype
+ * @param {function} callback
+ */
+function getInDir(dir, filetype, callback) {
+    // process filetype
+    if (typeof(filetype) == "string")
+        filetype = [filetype];
+
+    // perform scandir
+    fs.readdir(dir, function(err, files) {
+        if (err) {
+            callback([]);
+            return;
+        }
+
+        // filter filetypes
+        var _files = [];
+
+        for (var i = 0; i < files.length; i++) {
+            if (filetype.indexOf(path.extname(files[i])) !== -1)
+                _files.push(files[i]);
+        }
+
+        // callback
+        callback(_files);
+    });
+}
 
 // export
 module.exports = utils.class_("Registry", {
@@ -71,21 +103,44 @@ module.exports = utils.class_("Registry", {
      * Gets all models in the registry.
      */
     getModels: function() {
-        return this._models;
+        var _models = {};
+
+        // get all non-null models
+        for (var k in this._models) {
+            if (this._models.hasOwnProperty(k) && this._models[k] !== null)
+                _models[k] = this._models[k];
+        }
+
+        return _models;
     },
 
     /**
      * Gets all enums in the registry.
      */
     getEnums: function() {
-        return this._enums;
+        var _enums = {};
+
+        // get all non-null enums
+        for (var k in this._enums) {
+            if (this._enums.hasOwnProperty(k) && this._enums[k] !== null)
+                _enums[k] = this._enums[k];
+        }
+
+        return _enums;
     },
 
     /**
      * Gets all type definitions in the registry.
      */
     getTypeDefs: function() {
-        return this._typeDefs;
+        var _typeDefs = {};
+
+        for (var k in this._typeDefs) {
+            if (this._typeDefs.hasOwnProperty(k) && this._typeDefs[k] !== null)
+                _typeDefs[k] = this._typeDefs[k];
+        }
+
+        return _typeDefs;
     },
 
     /**
@@ -93,7 +148,7 @@ module.exports = utils.class_("Registry", {
      * @param name
      */
     getModel: function(name) {
-        if (!this._models.hasOwnProperty(name))
+        if (!this._models.hasOwnProperty(name) && this._models[name] !== null)
             return null;
         else
             return this._models[name];
@@ -113,7 +168,7 @@ module.exports = utils.class_("Registry", {
      * @param {string} name
      */
     getTypeDef: function(name) {
-        if (!this._typeDefs.hasOwnProperty(name))
+        if (!this._typeDefs.hasOwnProperty(name) && this._typeDefs[name] !== null)
             return null;
         else
             return this._typeDefs[name];
@@ -133,7 +188,7 @@ module.exports = utils.class_("Registry", {
      * @param {string} name
      */
     getEnum: function(name) {
-        if (!this._enums.hasOwnProperty(name))
+        if (!this._enums.hasOwnProperty(name) && this._enums[name] !== null)
             return null;
         else
             return this._enums[name];
@@ -179,14 +234,16 @@ module.exports = utils.class_("Registry", {
     /**
      * Validates a model.
      * @param {Model} model
+     * @param {boolean} If to perform lazy validation.
      * @private
      */
-    _validateModel: function(model) {
+    _validateModel: function(model, lazy) {
+        // setup validation
         var errors = [];
         var trace = model.getTrace();
 
         // check for duplicate
-        if (this._models.hasOwnProperty(model.getName())) {
+        if (model._lazy == false && this._models.hasOwnProperty(model.getName())) {
             errors.push({
                 str: "Duplicate model `" + model.getName() + "`",
                 line: trace.getLine(),
@@ -235,7 +292,10 @@ module.exports = utils.class_("Registry", {
                     }
                 }
 
-                if (!resolvedType) {
+                // skip type resolution for lazy validation, this is so we can
+                // parse up all the definitions first incase we're loading out
+                // of order.
+                if (!resolvedType && !lazy) {
                     errors.push({
                         str: "Invalid type `" + field.type.name + "` in `" + model.getName() + "`",
                         line: fieldTrace.getLine(),
@@ -256,12 +316,13 @@ module.exports = utils.class_("Registry", {
     /**
      * Loads a definition file (internal version).
      * @param {string} str The contents.
-     * @param {string?} path The path.
+     * @param {string} path The path.
+     * @param {boolean} lazy The lazy factor.
      * @private
      */
-    _load: function(str, path) {
+    _load: function(str, path, lazy) {
         // parse
-        var result = Parser.parse(str, this._importer, path === undefined ? null : path);
+        var result = Parser.parse(str, this._importer, path === undefined ? null : path, false);
 
         // check if parsed
         if (!result.valid) {
@@ -269,45 +330,63 @@ module.exports = utils.class_("Registry", {
             return false;
         }
 
-        var obj = null;
-        var objRes = null;
+        var obj;
+        var objRes;
         var errors = [];
         var i;
 
         // set enums
-        for (i = 0; i < result.enums.length; i++) {
+        for (i in result.enums) {
+            if (!result.enums.hasOwnProperty(i))
+                continue;
+
             obj = result.enums[i];
             objRes = {valid: true};
 
             if (objRes.valid) {
+                obj._lazy = lazy;
                 obj.setRegistry(this);
-                this._enums[obj.getName()] = obj;
+
+                // set enum
+                this._enums[i] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }
         }
 
         // set typedefs
-        for (i = 0; i < result.typeDefs.length; i++) {
+        for (i in result.typeDefs) {
+            if (!result.typeDefs.hasOwnProperty(i))
+                continue;
+
             obj = result.typeDefs[i];
             objRes = {valid: true};
 
             if (objRes.valid) {
+                obj._lazy = lazy;
                 obj.setRegistry(this);
-                this._typeDefs[obj.getName()] = obj;
+
+                // set typedef
+                this._typeDefs[i] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }
         }
 
         // set models
-        for (i = 0; i < result.models.length; i++) {
+        for (i in result.models) {
+            if (!result.models.hasOwnProperty(i))
+                continue;
+
             obj = result.models[i];
-            objRes = this._validateModel(obj);
+            objRes = this._validateModel(obj, lazy);
 
             if (objRes.valid) {
+                obj._lazy = lazy;
                 obj.setRegistry(this);
-                this._models[obj.getName()] = obj;
+
+                // set model
+                this._models[i] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }
@@ -323,7 +402,28 @@ module.exports = utils.class_("Registry", {
      * @returns {boolean} If successful.
      */
     load: function(str) {
-        return this._load(str);
+        return this._load(str, null, false);
+    },
+
+    /**
+     * Loads all definitions in the array into the registry.
+     * This function must be used if the definition files depend
+     * on order.
+     * @param {string[]} strArr
+     * @returns {boolean} If successful.
+     */
+    loadAll: function(strArr) {
+        // pre load
+        for (var i = 0; i < strArr.length; i++) {
+            if (!this._load(strArr[i], null, true))
+                return false;
+        }
+
+        // load
+        for (i = 0; i < strArr.length; i++) {
+            if (!this._load(strArr[i], null, false))
+                return false;
+        }
     },
 
     /**
@@ -344,9 +444,71 @@ module.exports = utils.class_("Registry", {
         // read
         fs.readFile(path, "utf8", function(err, data) {
             if (err)
-                callback(true);
+                throw err;
             else
-                callback(!obj._load(data, path));
+                callback(!obj._load(data, path, false));
+        });
+    },
+
+    /**
+     * Loads files into the registry.
+     * This function must be used if the definition files depend
+     * on order.
+     * @param {string} pathArr The array of paths.
+     * @param {function} callback The callback on completion.
+     */
+    loadAllFiles: function(pathArr, callback) {
+        // check parameters
+        if (!Array.isArray(pathArr)) throw "expected parameter 'path' to be an array";
+
+        var obj = this;
+
+        // default callback
+        if (callback == undefined || callback == null)
+            callback = function(err, msg) {};
+
+        // create read queue
+        var readQueue = new TaskQueue();
+
+        // queue file reads and lazy loading
+        var dataArr = [];
+
+        for (var i = 0; i < pathArr.length; i++) {
+            (function (i) {
+                readQueue.queue(function (done) {
+                    fs.readFile(pathArr[i], "utf8", function (err, data) {
+                        if (err) {
+                            throw err;
+                        } else {
+                            // add to array for later loading
+                            dataArr[i] = data;
+
+                            // load and parse
+                            if (!obj._load(data, pathArr[i], true))
+                                callback(true);
+                            else
+                                done();
+                        }
+                    });
+                });
+            })(i);
+        }
+
+        // queue real loading
+        for (var i = 0; i < pathArr.length; i++) {
+            (function (i) {
+                readQueue.queue(function (done) {
+                    if (!obj._load(dataArr[i], pathArr[i], false))
+                        callback(true);
+                    else
+                        done();
+                });
+            })(i);
+        }
+
+        // execute
+        readQueue.executeAll(function() {
+            callback(false);
         });
     },
 
