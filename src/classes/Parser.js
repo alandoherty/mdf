@@ -21,6 +21,7 @@ var utils = require("../utils"),
 var T_STATE_I = 0;
 var T_STATE_START = T_STATE_I++;
 var T_STATE_STRING = T_STATE_I++;
+var T_STATE_STRING_QUOTE = T_STATE_I++;
 var T_STATE_IDENTIFIER = T_STATE_I++;
 var T_STATE_LINECOMMENT = T_STATE_I++;
 var T_STATE_MULTILINECOMMENT = T_STATE_I++;
@@ -178,6 +179,8 @@ var Tokenizer = utils.class_("Tokenizer", {
             if (this._state == T_STATE_START) {
                 if (c == "\"") {
                     this._transition(T_STATE_STRING);
+                } else if (c == "'") {
+                    this._transition(T_STATE_STRING_QUOTE);
                 } else if (utils.isLetter(c) || c == "_") {
                     if (utils.isLetter(n) || n == "_")
                         this._transitionAndAdd(T_STATE_IDENTIFIER, c);
@@ -197,6 +200,8 @@ var Tokenizer = utils.class_("Tokenizer", {
                 }
             } else if (this._state == T_STATE_STRING) {
                 this._tokenizeString(c,p,n);
+            } else if (this._state == T_STATE_STRING_QUOTE) {
+                this._tokenizeStringQuote(c,p,n);
             } else if (this._state == T_STATE_IDENTIFIER) {
                 this._tokenizeIdentifier(c,p,n);
             } else if (this._state == T_STATE_LINECOMMENT) {
@@ -221,6 +226,13 @@ var Tokenizer = utils.class_("Tokenizer", {
 
     _tokenizeString: function(c, p, n) {
         if (c == "\"")
+            this._pushTokenAndTransition(TOK_STRING, T_STATE_START);
+        else
+            this._token += c;
+    },
+
+    _tokenizeStringQuote: function(c, p, n) {
+        if (c == "'")
             this._pushTokenAndTransition(TOK_STRING, T_STATE_START);
         else
             this._token += c;

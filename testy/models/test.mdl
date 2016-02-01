@@ -1,5 +1,5 @@
-model User : "zs_user" {
-    public custom("point") location;
+model User : 'zs_user' {
+    public custom('point') location;
     public string(48) firstName = "";
     public string(48) lastName = "";
     Email email;
