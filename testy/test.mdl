@@ -1,8 +1,8 @@
 import "./testy/hello.mdl";
 
 model User : "zs_user" {
-    public string firstName = "";
-    string lastName = "";
+    public string(48) firstName = "";
+    public string(48) lastName = "";
     Email email;
     bool emailVerified = false;
     bool notifications;

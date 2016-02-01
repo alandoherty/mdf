@@ -10,6 +10,9 @@
  */
 
 var utils = {
+    /**
+     * The base types.
+     */
     baseTypes : [
         "string",
         "boolean",
@@ -17,6 +20,30 @@ var utils = {
         "decimal",
         "array"
     ],
+
+    /**
+     * Validates a field definition.
+     * @param {string} type The type.
+     * @param {string} field The field.
+     * @returns {boolean|string}
+     */
+    validateType: function(type, field) {
+        switch(type) {
+            case "string":
+                // requires options
+                if (!field.type.options)
+                    return "String field `" + field.name + "` requires length option";
+
+                return true;
+            case "array":
+                // no default
+                if (field.def)
+                    return "Array field `" + field.name + "` cannot have default";
+                return true;
+            default:
+                return true;
+        }
+    },
 
     /**
      * Creates a new class.

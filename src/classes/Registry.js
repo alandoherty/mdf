@@ -212,8 +212,21 @@ module.exports = utils.class_("Registry", {
                     resolvedType = true;
 
                 // check base types
-                if (utils.baseTypes.indexOf(field.type.name) !== -1)
+                if (utils.baseTypes.indexOf(field.type.name) !== -1) {
                     resolvedType = true;
+
+                    // validate
+                    var validateType = utils.validateType(field.type.name, field);
+
+                    if (validateType !== true) {
+                        errors.push({
+                            str: validateType,
+                            line: fieldTrace.getLine(),
+                            offset: fieldTrace.getOffset(),
+                            path: fieldTrace.getPath()
+                        });
+                    }
+                }
 
                 if (!resolvedType) {
                     errors.push({
@@ -314,9 +327,12 @@ module.exports = utils.class_("Registry", {
     loadFile: function(path, callback) {
         // check parameters
         if (typeof(path) !== "string") throw "expected parameter 'path' to be a string";
-        if (typeof(callback) !== "function") throw "expected parameter 'callback' to be a function";
 
         var obj = this;
+
+        // default callback
+        if (callback == undefined || callback == null)
+            callback = function(err, msg) {};
 
         // read
         fs.readFile(path, "utf8", function(err, data) {
