@@ -14,7 +14,8 @@ var utils = {
         "string",
         "boolean",
         "integer",
-        "decimal"
+        "decimal",
+        "array"
     ],
 
     /**

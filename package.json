@@ -1,6 +1,6 @@
 {
   "name": "mdf",
-  "version": "1.2.4",
+  "version": "1.2.6",
   "description": "A format for defining models through external schemas",
   "main": "src/index.js",
   "scripts": {
