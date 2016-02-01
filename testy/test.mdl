@@ -1,4 +1,4 @@
-import "./testy/hello.mdl";
+import "hello.mdl";
 
 model User : "zs_user" {
     public custom("point") location;

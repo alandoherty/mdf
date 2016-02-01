@@ -11,7 +11,8 @@
 
 var Parser = require("./Parser"),
     utils = require("../utils"),
-    fs = require("fs");
+    fs = require("fs"),
+    path = require("path");
 
 // export
 module.exports = utils.class_("Registry", {
@@ -37,16 +38,22 @@ module.exports = utils.class_("Registry", {
 
     /**
      * The default file importer.
-     * @param {string} path The current path.
+     * @param {string} curPath The current path.
      * @param {string} importPath The path to import.
      * @private
      */
-    _importer: function(path, importPath) {
+    _importer: function(curPath, importPath) {
         var obj = this;
+        var curPathDir = path.dirname(curPath);
 
         // read
         try {
-            return fs.readFileSync(importPath, "utf8");
+            if (fs.existsSync("./" + curPathDir + "/" + importPath))
+                return fs.readFileSync("./" + curPathDir + "/" + importPath, "utf8");
+            else if (fs.existsSync(importPath))
+                return fs.readFileSync("./" + importPath, "utf8");
+            else
+                return false;
         } catch(e) {
             return false;
         }
