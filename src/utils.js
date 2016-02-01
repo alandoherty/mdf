@@ -18,7 +18,8 @@ var utils = {
         "boolean",
         "integer",
         "decimal",
-        "array"
+        "array",
+        "custom"
     ],
 
     /**
@@ -37,8 +38,17 @@ var utils = {
                 return true;
             case "array":
                 // no default
-                if (field.def)
+                if (field.type.def)
                     return "Array field `" + field.name + "` cannot have default";
+                return true;
+            case "custom":
+                // no param
+                if (field.type.param)
+                    return "Custom field type `" + field.name + "` cannot have type parameter";
+
+                // requires options
+                if (!field.type.options)
+                    return "Custom field type `" + field.name + "` must specify type as option";
                 return true;
             default:
                 return true;

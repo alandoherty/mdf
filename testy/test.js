@@ -5,8 +5,8 @@ mdf.loadFile("testy/test.mdl", function(err) {
         console.error("error parsing file");
         console.error(mdf.getErrors());
     } else {
-        console.log(mdf.getModels()["User"].build());
-
+        var model = mdf.getModels()["User"].build();
+        console.log(model.fields);
         console.log("success");
     }
 });

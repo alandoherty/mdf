@@ -1,6 +1,7 @@
 import "./testy/hello.mdl";
 
 model User : "zs_user" {
+    public custom("point") location;
     public string(48) firstName = "";
     public string(48) lastName = "";
     Email email;
@@ -9,7 +10,6 @@ model User : "zs_user" {
     bool blocked;
     bool isPrivate;
     Password password;
-    Group group;
     decimal credit = 42.24;
     State state;
 }
