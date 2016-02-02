@@ -234,7 +234,7 @@ module.exports = utils.class_("Registry", {
     /**
      * Validates a model.
      * @param {Model} model
-     * @param {boolean} If to perform lazy validation.
+     * @param {boolean} lazy If to perform lazy validation.
      * @private
      */
     _validateModel: function(model, lazy) {
@@ -268,15 +268,15 @@ module.exports = utils.class_("Registry", {
                     resolvedType = true;
 
                 // check enums
-                if (this._enums.hasOwnProperty(field.type.name))
+                if (!resolvedType && this._enums.hasOwnProperty(field.type.name))
                     resolvedType = true;
 
                 // check models
-                if (this._models.hasOwnProperty(field.type.name))
+                if (!resolvedType && this._models.hasOwnProperty(field.type.name))
                     resolvedType = true;
 
                 // check base types
-                if (utils.baseTypes.indexOf(field.type.name) !== -1) {
+                if (!resolvedType && utils.baseTypes.indexOf(field.type.name) !== -1) {
                     resolvedType = true;
 
                     // validate
@@ -302,6 +302,19 @@ module.exports = utils.class_("Registry", {
                         offset: fieldTrace.getOffset(),
                         path: fieldTrace.getPath()
                     });
+                    continue;
+                }
+
+                // prevent a model from referencing itself
+                if ((field.type.name == "ref" && field.type.param == model.getName()) ||
+                    (field.type.name == model.getName())) {
+                    errors.push({
+                        str: "Circular reference for `" + field.name + "` in `" + model.getName() + "`",
+                        line: fieldTrace.getLine(),
+                        offset: fieldTrace.getOffset(),
+                        path: fieldTrace.getPath()
+                    });
+                    continue;
                 }
             }
         }
@@ -336,10 +349,7 @@ module.exports = utils.class_("Registry", {
         var i;
 
         // set enums
-        for (i in result.enums) {
-            if (!result.enums.hasOwnProperty(i))
-                continue;
-
+        for (i = 0; i < result.enums.length; i++) {
             obj = result.enums[i];
             objRes = {valid: true};
 
@@ -348,17 +358,14 @@ module.exports = utils.class_("Registry", {
                 obj.setRegistry(this);
 
                 // set enum
-                this._enums[i] = obj;
+                this._enums[obj.getName()] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }
         }
 
         // set typedefs
-        for (i in result.typeDefs) {
-            if (!result.typeDefs.hasOwnProperty(i))
-                continue;
-
+        for (i = 0; i < result.typeDefs.length; i++) {
             obj = result.typeDefs[i];
             objRes = {valid: true};
 
@@ -367,17 +374,14 @@ module.exports = utils.class_("Registry", {
                 obj.setRegistry(this);
 
                 // set typedef
-                this._typeDefs[i] = obj;
+                this._typeDefs[obj.getName()] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }
         }
 
         // set models
-        for (i in result.models) {
-            if (!result.models.hasOwnProperty(i))
-                continue;
-
+        for (i = 0; i < result.models.length; i++) {
             obj = result.models[i];
             objRes = this._validateModel(obj, lazy);
 
@@ -386,7 +390,7 @@ module.exports = utils.class_("Registry", {
                 obj.setRegistry(this);
 
                 // set model
-                this._models[i] = obj;
+                this._models[obj.getName()] = obj;
             } else {
                 errors = errors.concat(objRes.errors);
             }

@@ -6,8 +6,9 @@ model User : 'zs_user' {
     bool emailVerified = false;
     bool notifications;
     bool blocked;
-    bool isPrivate;
+    bool isPrivate = false;
     Password password;
     decimal credit = 42.24;
     State state;
+    User user;
 }

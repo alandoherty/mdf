@@ -431,19 +431,19 @@ var Parser = utils.class_("Parser", {
      * The model definitions.
      * @private
      */
-    _models: {},
+    _models: [],
 
     /**
      * The enum definitions.
      * @private
      */
-    _enums: {},
+    _enums: [],
 
     /**
      * The type definitions.
      * @private
      */
-    _typeDefs: {},
+    _typeDefs: [],
 
     /**
      * The importer.
@@ -609,9 +609,9 @@ var Parser = utils.class_("Parser", {
         this._errors = [];
         this._pos = 0;
         this._current = {};
-        this._models = {};
-        this._enums = {};
-        this._typeDefs = {};
+        this._models = [];
+        this._enums = [];
+        this._typeDefs = [];
 
         // parse
         while(true) {
@@ -627,21 +627,21 @@ var Parser = utils.class_("Parser", {
                     def = this._parseModel();
 
                     if (def !== false)
-                        this._models[def.name] = def;
+                        this._models.push(def);
                     else
                         return false;
                 } else if (this._acceptKeyword("enum")) {
                     def = this._parseEnum();
 
                     if (def !== false)
-                        this._enums[def.name] = def;
+                        this._enums.push(def);
                     else
                         return false;
                 } else if (this._acceptKeyword("typedef")) {
                     def = this._parseTypeDef();
 
                     if (def !== false)
-                        this._typeDefs[def.name] = def;
+                        this._typeDefs.push(def);
                     else
                         return false;
                 } else if (this._acceptKeyword("import")) {
@@ -714,6 +714,13 @@ var Parser = utils.class_("Parser", {
             var value = this._expect(TOK_IDENTIFIER);
             if (value == false) return false;
 
+            // check for duplicates
+            if (values.indexOf(value.token) !== -1) {
+                this._error("Duplicate enum value '" + value.token + "' in `" + name.token + "`")
+                return false;
+            }
+
+            // push value
             values.push(value.token);
             valuesTrace.push(new Trace(value.line, value.offset, this._path));
 
@@ -763,32 +770,20 @@ var Parser = utils.class_("Parser", {
                 var result = module.exports.parse(data, this._importer, file.token, true);
 
                 // check if parse successful
-                var i = "";
+                var i;
 
                 if (result.valid) {
                     // push all models
-                    for (i in result.models) {
-                        if (!result.models.hasOwnProperty(i))
-                            continue;
-
+                    for (i = 0; i < result.models.length; i++)
                         this._models[i] = result.models[i];
-                    }
 
                     // push all enums
-                    for (i in result.enums) {
-                        if (!result.enums.hasOwnProperty(i))
-                            continue;
-
+                    for (i = 0; i  < result.enums.length; i++)
                         this._enums[i] = result.enums[i];
-                    }
 
                     // push all type defs
-                    for (i in result.typeDefs) {
-                        if (!result.typeDefs.hasOwnProperty(i))
-                            continue;
-
+                    for (i = 0; i  < result.typeDefs.length; i++)
                         this._typeDefs[i] = result.typeDefs[i];
-                    }
                 } else {
                     // push all errors
                     for (i = 0; i < result.errors.length; i++)
@@ -840,6 +835,12 @@ var Parser = utils.class_("Parser", {
             // get field
             var field = this._parseField();
             if (field == false) return false;
+
+            // check for duplicate
+            if (fields.hasOwnProperty(field.name)) {
+                this._error("Duplicate field `" + field.name + "` in `" + name.token + "`");
+                return false;
+            }
 
             // push
             fields[field.name] = field;
@@ -992,22 +993,19 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the model definitions.
-     * @returns {object}
+     * @returns {Model[]}
      */
     buildModels: function() {
-        var models = {};
+        var models = [];
 
-        for(var i in this._models) {
-            if (!this._models.hasOwnProperty(i))
-                continue;
-
+        for (var i = 0; i < this._models.length; i++) {
             // get model definition
             var model = this._models[i];
 
             var obj = new Model(model.name, model.hasOwnProperty("table") ? model.table : false, model.fields);
             obj._trace = model.trace;
             obj._fieldsTrace = model.fieldsTrace;
-            models[model.name] = obj;
+            models.push(obj);
         }
 
         return models;
@@ -1015,22 +1013,19 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the enum definitions.
-     * @returns {object}
+     * @returns {Enum[]}
      */
     buildEnums: function() {
-        var enums = {};
+        var enums = [];
 
-        for(var i in this._enums) {
-            if (!this._enums.hasOwnProperty(i))
-                continue;
-
+        for (var i = 0; i < this._enums.length; i++) {
             // get enum definition
             var enum_ = this._enums[i];
 
             var obj = new Enum(enum_.name, enum_.values);
             obj._trace = enum_.trace;
             obj._valuesTrace = enum_.valuesTrace;
-            enums[enum_.name] = obj;
+            enums.push(obj);
         }
 
         return enums;
@@ -1038,21 +1033,18 @@ var Parser = utils.class_("Parser", {
 
     /**
      * Builds the type definition.
-     * @returns {object}
+     * @returns {TypeDef[]}
      */
     buildTypeDefs: function() {
-        var typeDefs = {};
+        var typeDefs = [];
 
-        for(var i in this._typeDefs) {
-            if (!this._typeDefs.hasOwnProperty(i))
-                continue;
-
+        for (var i = 0; i < this._typeDefs.length; i++) {
             // get type definition
             var typeDef = this._typeDefs[i];
 
             var obj = new TypeDef(typeDef.name, typeDef.type);
             obj._trace = typeDef.trace;
-            typeDefs[typeDef.name] = obj;
+            typeDefs.push(obj);
         }
 
         return typeDefs;
