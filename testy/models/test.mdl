@@ -10,5 +10,4 @@ model User : 'zs_user' {
     Password password;
     decimal credit = 42.24;
     State state;
-    User user;
 }

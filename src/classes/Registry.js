@@ -56,6 +56,11 @@ module.exports = utils.class_("Registry", {
     /**
      * @private
      */
+    _modelsTables: {},
+
+    /**
+     * @private
+     */
     _enums: {},
 
     /**
@@ -314,8 +319,23 @@ module.exports = utils.class_("Registry", {
                         offset: fieldTrace.getOffset(),
                         path: fieldTrace.getPath()
                     });
-                    continue;
                 }
+            }
+        }
+
+        // if valid, add to the list of tables
+        if (errors.length == 0 && lazy !== true) {
+            if (this._modelsTables.hasOwnProperty(model.getTable())) {
+                var dupModel = this._modelsTables[model.getTable()];
+
+                errors.push({
+                    str: "Duplicate table `" + model.getTable() + "` in `" + model.getName() + "`, already used by `" + dupModel.getName() + "`",
+                    line: trace.getLine(),
+                    offset: trace.getOffset(),
+                    path: trace.getPath()
+                });
+            } else {
+                this._modelsTables[model.getTable()] = model;
             }
         }
 
